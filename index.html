@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>REPCONTVER - Control de Asistencia</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+            padding: 25px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+
+        .btn-success {
+            background: #00d25b;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffa502;
+            color: white;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 14px;
+            width: auto;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .camera-container {
+            width: 100%;
+            height: 300px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            position: relative;
+            border: 3px solid #e0e0e0;
+        }
+
+        .camera-container.required {
+            border-color: #ff4757;
+        }
+
+        #video, #canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .camera-controls .btn {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .photo-status {
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+
+        .photo-status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .photo-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .location-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .location-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .location-info strong {
+            color: #333;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+            color: #666;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            color: white;
+        }
+
+        .action-btn.view {
+            background: #667eea;
+        }
+
+        .action-btn.map {
+            background: #00d25b;
+        }
+
+        .action-btn.edit {
+            background: #ffa502;
+        }
+
+        .action-btn.delete {
+            background: #ff4757;
+        }
+
+        .filters {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .filters .form-group {
+            margin-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            color: #999;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            z-index: 2000;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .notification.success {
+            background: #00d25b;
+        }
+
+        .notification.error {
+            background: #ff4757;
+        }
+
+        .notification.info {
+            background: #667eea;
+        }
+
+        @keyframes slideDown {
+            from { top: -100px; opacity: 0; }
+            to { top: 20px; opacity: 1; }
+        }
+
+        .stats-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                max-width: 100%;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .btn {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="notification" class="notification"></div>
+
+    <div class="container">
+        <!-- Pantalla de Inicio -->
+        <div id="homeScreen" class="screen active">
+            <div class="header">
+                <div class="logo">R</div>
+                <h1>REPCONTVER</h1>
+                <p>Control de Asistencia - Ecuador (GMT-5)</p>
+            </div>
+            
+            <button class="btn btn-primary" onclick="showScreen('workerLoginScreen')">
+                👷 TRABAJADOR
+            </button>
+            
+            <button class="btn btn-secondary" onclick="showScreen('adminLoginScreen')">
+                👑 ADMINISTRACIÓN
+            </button>
+            
+            <p style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+                Versión 4.0 - Hora Ecuador
+            </p>
+        </div>
+
+        <!-- Login Trabajador -->
+        <div id="workerLoginScreen" class="screen">
+            <div class="header">
+                <button class="btn btn-secondary" style="width: auto; padding: 8px 15px; margin-bottom: 15px;" onclick="showScreen('homeScreen')">
+                    ← Volver
+                </button>
+                <h2>Acceso Trabajador</h2>
+                <p>Ingresa tu cédula</p>
+            </div>
+
+            <div class="form-group">
+                <label>Cédula de Identidad</label>
+                <input type="text" id="workerCedula" class="form-control" placeholder="Ej: 12345678" maxlength="10">
+            </div>
+
+            <button class="btn btn-primary" onclick="startWorkerSession()">
+                Continuar
+            </button>
+        </div>
+
+        <!-- Login Admin -->
+        <div id="adminLoginScreen" class="screen">
+            <div class="header">
+                <button class="btn btn-secondary" style="width: auto; padding: 8px 15px; margin-bottom: 15px;" onclick="showScreen('homeScreen')">
+                    ← Volver
+                </button>
+                <h2>Acceso Administrativo</h2>
+                <p style="color: #ff4757; font-size: 12px; margin-top: 5px;">
+                    ⚠️ Por seguridad, ingrese sus credenciales cada vez
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="adminUser" class="form-control" placeholder="Ingrese su usuario" autocomplete="off">
+            </div>
+
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="adminPass" class="form-control" placeholder="Ingrese su contraseña" autocomplete="off">
+            </div>
+
+            <button class="btn btn-primary" onclick="adminLogin()">
+                Ingresar
+            </button>
+            
+            <p style="text-align: center; margin-top: 15px; color: #999; font-size: 11px;">
+                🔒 Sus credenciales son personales e intransferibles
+            </p>
+        </div>
+
+        <!-- Panel Trabajador -->
+        <div id="workerPanelScreen" class="screen">
+            <div class="header">
+                <button class="btn btn-secondary" style="width: auto; padding: 8px 15px; margin-bottom: 15px;" onclick="logout()">
+                    ← Salir
+                </button>
+                <h2 id="workerName">Bienvenido</h2>
+                <p id="workerCedulaDisplay"></p>
+            </div>
+
+            <div id="photoStatus" class="photo-status error">
+                ⚠️ Debe tomar una foto
+            </div>
+
+            <div class="camera-container" id="cameraContainer">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <div class="camera-controls">
+                <button class="btn btn-primary" onclick="capturePhoto()" id="btnTomarFoto">
+                    📸 Tomar Foto
+                </button>
+                <button class="btn btn-secondary" onclick="retakePhoto()" id="btnRepetirFoto" style="display: none;">
+                    🔄 Repetir
+                </button>
+            </div>
+
+            <div class="location-info" id="locationInfo">
+                <p><strong>📍 Ubicación:</strong> Obteniendo...</p>
+                <p id="coordinates"></p>
+            </div>
+
+            <button class="btn btn-success" onclick="registerMark('entrada')" id="btnEntrada" disabled>
+                ▶ MARCAR ENTRADA
+            </button>
+            
+            <button class="btn btn-danger" onclick="registerMark('salida')" id="btnSalida" disabled>
+                ⏹ MARCAR SALIDA
+            </button>
+
+            <div style="margin-top: 20px;">
+                <h3 style="margin-bottom: 10px; color: #333;">Marcaciones de Hoy</h3>
+                <div id="todayMarks"></div>
+            </div>
+        </div>
+
+        <!-- Panel Admin -->
+        <div id="adminPanelScreen" class="screen">
+            <div class="header">
+                <button class="btn btn-secondary" style="width: auto; padding: 8px 15px; margin-bottom: 15px;" onclick="logout()">
+                    ← Salir
+                </button>
+                <h2>Panel Administrativo</h2>
+                <p>Gestión de Usuarios y Marcaciones</p>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchAdminTab('marcaciones')">📊 Marcaciones</div>
+                <div class="tab" onclick="switchAdminTab('usuarios')">👥 Usuarios</div>
+            </div>
+
+            <div id="tabMarcaciones" class="tab-content active">
+                <div class="filters">
+                    <div class="form-group">
+                        <label>Fecha Inicio</label>
+                        <input type="date" id="fechaInicio" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Fin</label>
+                        <input type="date" id="fechaFin" class="form-control">
+                    </div>
+                    <button class="btn btn-primary" onclick="filterMarks()">
+                        Filtrar
+                    </button>
+                    <button class="btn btn-success" onclick="exportToExcel()" style="margin-top: 10px;">
+                        📊 Exportar a Excel
+                    </button>
+                    <button class="btn btn-info" onclick="verTodas()" style="margin-top: 5px;">
+                        📋 Ver Todas
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table id="marksTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>NOMBRES</th>
+                                <th>ENTRADA</th>
+                                <th>SALIDA</th>
+                                <th>SOPORTES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="marksTableBody">
+                            <tr><td colspan="5" style="text-align:center; padding:30px;">No hay marcaciones</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tabUsuarios" class="tab-content">
+                <button class="btn btn-success" onclick="showAddUserModal()" style="margin-bottom: 15px;">
+                    ➕ Agregar Nuevo Usuario
+                </button>
+
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <h3>Total Usuarios</h3>
+                        <p id="totalUsuarios">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Activos Hoy</h3>
+                        <p id="activosHoy">0</p>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>CÉDULA</th>
+                                <th>NOMBRES</th>
+                                <th>ESTADO</th>
+                                <th>ACCIONES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('userModal')">&times;</span>
+            <h3 id="userModalTitle">Agregar Usuario</h3>
+            <div class="form-group">
+                <label>Cédula</label>
+                <input type="text" id="userCedula" class="form-control" maxlength="10">
+            </div>
+            <div class="form-group">
+                <label>Nombres</label>
+                <input type="text" id="userNombres" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Estado</label>
+                <select id="userEstado" class="form-control">
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="saveUser()">Guardar</button>
+        </div>
+    </div>
+
+    <div id="photoModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('photoModal')">&times;</span>
+            <img id="modalPhoto" src="">
+            <p id="modalInfo"></p>
+        </div>
+    </div>
+
+    <div id="mapModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('mapModal')">&times;</span>
+            <iframe id="mapIframe" width="100%" height="300" frameborder="0"></iframe>
+            <p id="mapCoordinates"></p>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('confirmModal')">&times;</span>
+            <p id="confirmMessage"></p>
+            <button class="btn btn-danger" onclick="confirmDelete()">Sí</button>
+            <button class="btn btn-secondary" onclick="closeModal('confirmModal')">No</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
