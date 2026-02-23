@@ -203,8 +203,8 @@ function switchAdminTab(tab) {
     }
 }
 
-// ===== REGISTRAR MARCACIÓN =====
-function registerMark(tipo) {
+// ===== REGISTRAR MARCACIÓN (MODIFICADO PARA FIREBASE) =====
+async function registerMark(tipo) {
     if (!currentPhoto) return showNotification('Debe tomar foto', 'error');
     if (!currentLocation) return showNotification('Espere ubicación', 'info');
 
@@ -213,42 +213,75 @@ function registerMark(tipo) {
     
     console.log('Guardando en Ecuador:', fechaHora);
 
+    // Buscar si ya existe marcación hoy
     let existente = marks.find(m => m.cedula === currentWorker.cedula && m.entrada?.startsWith(today));
 
-    if (existente) {
-        if (tipo === 'entrada' && !existente.entrada) {
-            existente.entrada = fechaHora;
-            existente.fotoEntrada = currentPhoto;
-            existente.latEntrada = currentLocation.lat;
-            existente.lngEntrada = currentLocation.lng;
-        } else if (tipo === 'salida' && !existente.salida) {
-            existente.salida = fechaHora;
-            existente.fotoSalida = currentPhoto;
-            existente.latSalida = currentLocation.lat;
-            existente.lngSalida = currentLocation.lng;
+    try {
+        if (existente) {
+            if (tipo === 'entrada' && !existente.entrada) {
+                existente.entrada = fechaHora;
+                existente.fotoEntrada = currentPhoto;
+                existente.latEntrada = currentLocation.lat;
+                existente.lngEntrada = currentLocation.lng;
+                
+                // Actualizar en Firebase
+                await db.collection('marcaciones').doc(existente.id).update({
+                    entrada: fechaHora,
+                    fotoEntrada: currentPhoto,
+                    latEntrada: currentLocation.lat,
+                    lngEntrada: currentLocation.lng
+                });
+                
+            } else if (tipo === 'salida' && !existente.salida) {
+                existente.salida = fechaHora;
+                existente.fotoSalida = currentPhoto;
+                existente.latSalida = currentLocation.lat;
+                existente.lngSalida = currentLocation.lng;
+                
+                // Actualizar en Firebase
+                await db.collection('marcaciones').doc(existente.id).update({
+                    salida: fechaHora,
+                    fotoSalida: currentPhoto,
+                    latSalida: currentLocation.lat,
+                    lngSalida: currentLocation.lng
+                });
+                
+            } else {
+                return showNotification(`Ya registró ${tipo} hoy`, 'error');
+            }
         } else {
-            return showNotification(`Ya registró ${tipo} hoy`, 'error');
+            // Nueva marcación
+            const newMark = {
+                cedula: currentWorker.cedula,
+                nombres: currentWorker.nombres,
+                entrada: tipo === 'entrada' ? fechaHora : null,
+                salida: tipo === 'salida' ? fechaHora : null,
+                fotoEntrada: tipo === 'entrada' ? currentPhoto : null,
+                fotoSalida: tipo === 'salida' ? currentPhoto : null,
+                latEntrada: tipo === 'entrada' ? currentLocation.lat : null,
+                lngEntrada: tipo === 'entrada' ? currentLocation.lng : null,
+                latSalida: tipo === 'salida' ? currentLocation.lat : null,
+                lngSalida: tipo === 'salida' ? currentLocation.lng : null,
+                fechaHora: firebase.firestore.FieldValue.serverTimestamp(),
+                fechaHoraStr: fechaHora
+            };
+            
+            // Guardar en Firebase
+            const docRef = await db.collection('marcaciones').add(newMark);
+            
+            // Agregar a marks local con el ID
+            marks.push({ id: docRef.id, ...newMark });
         }
-    } else {
-        marks.push({
-            id: marks.length + 1,
-            cedula: currentWorker.cedula,
-            nombres: currentWorker.nombres,
-            entrada: tipo === 'entrada' ? fechaHora : null,
-            salida: tipo === 'salida' ? fechaHora : null,
-            fotoEntrada: tipo === 'entrada' ? currentPhoto : null,
-            fotoSalida: tipo === 'salida' ? currentPhoto : null,
-            latEntrada: tipo === 'entrada' ? currentLocation.lat : null,
-            lngEntrada: tipo === 'entrada' ? currentLocation.lng : null,
-            latSalida: tipo === 'salida' ? currentLocation.lat : null,
-            lngSalida: tipo === 'salida' ? currentLocation.lng : null
-        });
-    }
 
-    showNotification(`Marcación de ${tipo} registrada`, 'success');
-    retakePhoto();
-    loadTodayMarks();
-    if (document.getElementById('adminPanelScreen').classList.contains('active')) loadAdminTable();
+        showNotification(`Marcación de ${tipo} registrada`, 'success');
+        retakePhoto();
+        loadTodayMarks();
+        loadAdminTable();
+        
+    } catch (error) {
+        console.error('Error guardando en Firebase:', error);
+        showNotification('Error al guardar en la nube', 'error');
+    }
 }
 
 // ===== CARGAR MARCACIONES HOY =====
@@ -321,7 +354,7 @@ function updateUserStats() {
     document.getElementById('activosHoy').textContent = marks.filter(m => m.entrada?.startsWith(today)).length;
 }
 
-// ===== CRUD USUARIOS =====
+// ===== CRUD USUARIOS (MODIFICADO PARA FIREBASE) =====
 function showAddUserModal() {
     document.getElementById('userModalTitle').textContent = 'Agregar Usuario';
     document.getElementById('userCedula').value = '';
@@ -342,7 +375,7 @@ function editUser(cedula) {
     document.getElementById('userModal').classList.add('active');
 }
 
-function guardarUsuario() {
+async function guardarUsuario() {
     const cedula = document.getElementById('userCedula').value.trim();
     const nombres = document.getElementById('userNombres').value.trim();
     const estado = document.getElementById('userEstado').value;
@@ -354,31 +387,54 @@ function guardarUsuario() {
 
     const existente = employees.find(e => e.cedula === cedula);
     
-    if (existente && document.getElementById('userCedula').disabled) {
-        // Es edición
-        existente.nombres = nombres;
-        existente.estado = estado;
-        showNotification('Usuario actualizado', 'success');
-    } else if (existente) {
-        showNotification('Ya existe un usuario con esa cédula', 'error');
-        return;
-    } else {
-        // Es nuevo
-        employees.push({ cedula, nombres, estado });
-        showNotification('Usuario creado', 'success');
-    }
+    try {
+        if (existente && document.getElementById('userCedula').disabled) {
+            // Es edición
+            await db.collection('empleados').doc(existente.id).update({
+                nombres, estado
+            });
+            existente.nombres = nombres;
+            existente.estado = estado;
+            showNotification('Usuario actualizado', 'success');
+            
+        } else if (existente) {
+            showNotification('Ya existe un usuario con esa cédula', 'error');
+            return;
+            
+        } else {
+            // Es nuevo
+            const docRef = await db.collection('empleados').add({
+                cedula, nombres, estado
+            });
+            employees.push({ id: docRef.id, cedula, nombres, estado });
+            showNotification('Usuario creado', 'success');
+        }
 
-    closeModal('userModal');
-    loadUsersTable();
-    updateUserStats();
+        closeModal('userModal');
+        loadUsersTable();
+        updateUserStats();
+        
+    } catch (error) {
+        console.error('Error guardando usuario:', error);
+        showNotification('Error al guardar en Firebase', 'error');
+    }
 }
 
-function deleteUser(cedula) {
-    if (confirm(`¿Eliminar usuario ${cedula}?`)) {
+async function deleteUser(cedula) {
+    if (!confirm(`¿Eliminar usuario ${cedula}?`)) return;
+    
+    const user = employees.find(e => e.cedula === cedula);
+    if (!user) return;
+    
+    try {
+        await db.collection('empleados').doc(user.id).delete();
         employees = employees.filter(e => e.cedula !== cedula);
         showNotification('Usuario eliminado', 'success');
         loadUsersTable();
         updateUserStats();
+    } catch (error) {
+        console.error('Error eliminando usuario:', error);
+        showNotification('Error al eliminar', 'error');
     }
 }
 
@@ -649,10 +705,57 @@ function logout() {
     showScreen('homeScreen');
 }
 
-// ===== INICIALIZACIÓN =====
+// ===== FUNCIÓN PARA CARGAR DATOS INICIALES DESDE FIREBASE (NUEVA) =====
+async function cargarDatosIniciales() {
+    try {
+        showNotification('Cargando datos desde la nube...', 'info');
+        
+        // Cargar empleados desde Firebase
+        const empleadosSnapshot = await db.collection('empleados').get();
+        if (!empleadosSnapshot.empty) {
+            employees = [];
+            empleadosSnapshot.forEach(doc => {
+                employees.push({ id: doc.id, ...doc.data() });
+            });
+        }
+        
+        // Cargar marcaciones desde Firebase
+        const marcacionesSnapshot = await db.collection('marcaciones')
+            .orderBy('fechaHora', 'desc')
+            .get();
+        
+        if (!marcacionesSnapshot.empty) {
+            marks = [];
+            marcacionesSnapshot.forEach(doc => {
+                marks.push({ id: doc.id, ...doc.data() });
+            });
+        }
+        
+        // Actualizar UI
+        loadUsersTable();
+        loadAdminTable();
+        updateUserStats();
+        
+        console.log('✅ Datos cargados desde Firebase');
+        showNotification('Datos sincronizados', 'success');
+        
+    } catch (error) {
+        console.error('Error cargando datos:', error);
+        showNotification('Error al conectar con Firebase', 'error');
+    }
+}
+
+// ===== INICIALIZACIÓN (MODIFICADA) =====
 document.addEventListener('DOMContentLoaded', () => {
-    loadUsersTable();
-    updateUserStats();
+    // Cargar datos desde Firebase
+    if (typeof db !== 'undefined') {
+        cargarDatosIniciales();
+    } else {
+        console.warn('Firebase no disponible, usando datos locales');
+        loadUsersTable();
+        updateUserStats();
+    }
+    
     console.log('Sistema iniciado - Zona horaria Ecuador GMT-5');
     console.log('Hora actual Ecuador:', getHoraEcuador());
 });
